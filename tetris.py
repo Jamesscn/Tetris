@@ -190,8 +190,6 @@ while running:
 
 	#Tetromino Logic
 	if currentTetromino != None:
-		for mino in currentTetromino.minos:
-			matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 0
 		if turnLeft:
 			currentTetromino.tryTurnLeft()
 		if turnRight:
@@ -217,8 +215,6 @@ while running:
 					gameOver = True
 					break
 		else:
-			for mino in currentTetromino.minos:
-				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 0
 			if currentTetromino.tryMove(matrix, 0, 1) == False:
 				for mino in currentTetromino.minos:
 					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 1
@@ -254,11 +250,6 @@ while running:
 			score += clearedRows * 100
 			prevTetris = False
 		matrix = newMatrix
-		
-	if currentTetromino != None:
-		for mino in currentTetromino.minos:
-			matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 2
-			matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].colour = currentTetromino.colour
 	
 	#Screen Display
 	for y in range(matrixHeight):
@@ -268,6 +259,10 @@ while running:
 				board.blit(filledMino, [x * (minoSize + gridlineSize), y * (minoSize + gridlineSize)])
 			else:
 				board.blit(emptyMino, [x * (minoSize + gridlineSize), y * (minoSize + gridlineSize)])
+	if currentTetromino != None:
+		for mino in currentTetromino.minos:
+			filledMino.fill(currentTetromino.colour)
+			board.blit(filledMino, [(currentTetromino.x + mino.x) * (minoSize + gridlineSize), (currentTetromino.y + mino.y) * (minoSize + gridlineSize)])
 	screen.blit(board, [sidebarWidth, 0])
 	screen.blit(sidebar, [0, 0])
 	if nextTetromino != None:
