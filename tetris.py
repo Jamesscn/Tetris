@@ -7,20 +7,25 @@ minoSpawnX = 3
 minoSpawnY = 1
 minoSize = 32
 gridlineSize = 1
-filledMinoColour = [0, 100, 0]
-emptyMinoColour = [0, 0, 0]
-gridlineColour = [200, 200, 200]
+emptyMinoColour = [27, 27, 27]
+gridlineColour = [0, 0, 0]
 
 #Classes
+class Tile:
+	def __init__(self, value, colour):
+		self.value = value
+		self.colour = colour
+
 class Mino:
 	def __init__(self, x, y): #add colour
 		self.x = x
 		self.y = y
 
 class Tetromino:
-	def __init__(self, dx1, dy1, dx2, dy2, dx3, dy3, dx4, dy4, cornerX, cornerY, size):
+	def __init__(self, dx1, dy1, dx2, dy2, dx3, dy3, dx4, dy4, cornerX, cornerY, size, colour):
 		self.x = minoSpawnX
 		self.y = minoSpawnY
+		self.colour = colour
 		self.minos = [
 			Mino(dx1, dy1),
 			Mino(dx2, dy2),
@@ -32,12 +37,13 @@ class Tetromino:
 		self.size = size
 
 	def createCopy(self):
-		copy = Tetromino(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+		copy = Tetromino(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, [0, 0, 0])
 		copy.x = self.x
 		copy.y = self.y
 		copy.cornerX = self.cornerX
 		copy.cornerY = self.cornerY
 		copy.size = self.size
+		copy.colour = self.colour
 		copy.minos = [
 			Mino(self.minos[0].x, self.minos[0].y),
 			Mino(self.minos[1].x, self.minos[1].y),
@@ -54,7 +60,7 @@ class Tetromino:
 			if newX < 0 or newX >= matrixWidth or newY >= matrixHeight:
 				canMove = False
 				break
-			if matrix[newY][newX] == 1:
+			if matrix[newY][newX].value == 1:
 				canMove = False
 				break
 		if canMove:
@@ -72,7 +78,7 @@ class Tetromino:
 			if newX < 0 or newX >= matrixWidth or newY >= matrixHeight:
 				canRotate = False
 				break
-			if matrix[newY][newX] == 1:
+			if matrix[newY][newX].value == 1:
 				canRotate = False
 				break
 		if canRotate:
@@ -92,7 +98,7 @@ class Tetromino:
 			if newX < 0 or newX >= matrixWidth or newY >= matrixHeight:
 				canRotate = False
 				break
-			if matrix[newY][newX] == 1:
+			if matrix[newY][newX].value == 1:
 				canRotate = False
 				break
 		if canRotate:
@@ -103,13 +109,13 @@ class Tetromino:
 				mino.y = currX + self.cornerY
 
 tetrominos = [
-	Tetromino(1, 0, 2, 0, 1, -1, 2, -1, 0, -2, 4), #O
-	Tetromino(0, 0, 1, 0, 2, 0, 3, 0, 0, -1, 4), #I
-	Tetromino(0, 0, 1, 0, 2, 0, 1, -1, 0, -1, 3), #T
-	Tetromino(0, 0, 1, 0, 2, 0, 2, -1, 0, -1, 3), #J
-	Tetromino(0, 0, 1, 0, 2, 0, 0, -1, 0, -1, 3), #L
-	Tetromino(0, 0, 1, 0, 1, -1, 2, -1, 0, -1, 3), #S
-	Tetromino(1, 0, 2, 0, 0, -1, 1, -1, 0, -1, 3) #Z
+	Tetromino(1, 0, 2, 0, 1, -1, 2, -1, 0, -2, 4, [192, 192, 0]), #O
+	Tetromino(0, 0, 1, 0, 2, 0, 3, 0, 0, -1, 4, [0, 192, 192]), #I
+	Tetromino(0, 0, 1, 0, 2, 0, 1, -1, 0, -1, 3, [80, 0, 150]), #T
+	Tetromino(0, 0, 1, 0, 2, 0, 2, -1, 0, -1, 3, [200, 100, 0]), #J
+	Tetromino(0, 0, 1, 0, 2, 0, 0, -1, 0, -1, 3, [0, 80, 200]), #L
+	Tetromino(0, 0, 1, 0, 1, -1, 2, -1, 0, -1, 3, [0, 127, 0]), #S
+	Tetromino(1, 0, 2, 0, 0, -1, 1, -1, 0, -1, 3, [192, 0, 0]) #Z
 ]
 
 #Initialization
@@ -121,10 +127,9 @@ matrix = []
 for y in range(matrixHeight):
 	row = []
 	for x in range(matrixWidth):
-		row.append(0)
+		row.append(Tile(0, [0, 0, 0]))
 	matrix.append(row)
 filledMino = pygame.surface.Surface([minoSize, minoSize])
-filledMino.fill(filledMinoColour)
 emptyMino = pygame.surface.Surface([minoSize, minoSize])
 emptyMino.fill(emptyMinoColour)
 screen = pygame.display.set_mode([screenWidth, screenHeight])
@@ -177,7 +182,7 @@ while running:
 	#Tetromino logic
 	if currentTetromino != None:
 		for mino in currentTetromino.minos:
-			matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x] = 0
+			matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 0
 		if turnLeft:
 			currentTetromino.tryTurnLeft()
 		if turnRight:
@@ -191,14 +196,15 @@ while running:
 			if moveRight:
 				currentTetromino.tryMove(matrix, 1, 0)
 		for mino in currentTetromino.minos:
-				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x] = 2
+				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 2
+				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].colour = currentTetromino.colour
 	if ticksSinceFall >= 36:
 		ticksSinceFall = 0
 		if currentTetromino == None:
 			tetrominoIndex = random.randrange(len(tetrominos))
 			currentTetromino = tetrominos[tetrominoIndex].createCopy()
 			for mino in currentTetromino.minos:
-				if matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x] == 1:
+				if matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value == 1:
 					print("Game over")
 					gameOver = True
 					break
@@ -206,14 +212,16 @@ while running:
 				continue
 		else:
 			for mino in currentTetromino.minos:
-					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x] = 0
+					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 0
 			if currentTetromino.tryMove(matrix, 0, 1) == False:
 				for mino in currentTetromino.minos:
-					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x] = 1
+					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 1
+					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].colour = currentTetromino.colour
 				currentTetromino = None
 		if currentTetromino != None:
 			for mino in currentTetromino.minos:
-				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x] = 2
+				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 2
+				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].colour = currentTetromino.colour
 	
 	#Row Removal
 	newMatrix = []
@@ -221,11 +229,11 @@ while running:
 	clearedRows = 0
 	tetris = False
 	for tile in range(matrixWidth):
-		emptyRow.append(0)
+		emptyRow.append(Tile(0, [0, 0, 0]))
 	for row in matrix:
 		clear = True
 		for tile in row:
-			if tile != 1:
+			if tile.value != 1:
 				clear = False
 				break
 		if clear:
@@ -247,7 +255,8 @@ while running:
 	#Screen Display
 	for y in range(matrixHeight):
 		for x in range(matrixWidth):
-			if matrix[y][x] > 0:
+			if matrix[y][x].value > 0:
+				filledMino.fill(matrix[y][x].colour)
 				board.blit(filledMino, [x * (minoSize + gridlineSize), y * (minoSize + gridlineSize)])
 			else:
 				board.blit(emptyMino, [x * (minoSize + gridlineSize), y * (minoSize + gridlineSize)])
