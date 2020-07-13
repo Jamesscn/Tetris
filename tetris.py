@@ -1,5 +1,6 @@
 import pygame, random, os, time
 
+#Parameters
 matrixWidth = 10
 matrixHeight = 20
 minoSpawnX = 3
@@ -9,24 +10,34 @@ gridlineSize = 1
 filledMinoColour = [0, 100, 0]
 emptyMinoColour = [0, 0, 0]
 gridlineColour = [200, 200, 200]
-prevTetris = False
 
+#Classes
 class Mino:
 	def __init__(self, x, y): #add colour
 		self.x = x
 		self.y = y
 
 class Tetromino:
-	def __init__(self, dx1, dy1, dx2, dy2, dx3, dy3, dx4, dy4):
+	def __init__(self, dx1, dy1, dx2, dy2, dx3, dy3, dx4, dy4, cornerX, cornerY, size):
+		self.x = minoSpawnX
+		self.y = minoSpawnY
 		self.minos = [
-			Mino(minoSpawnX + dx1, minoSpawnY + dy1),
-			Mino(minoSpawnX + dx2, minoSpawnY + dy2),
-			Mino(minoSpawnX + dx3, minoSpawnY + dy3),
-			Mino(minoSpawnX + dx4, minoSpawnY + dy4)
+			Mino(dx1, dy1),
+			Mino(dx2, dy2),
+			Mino(dx3, dy3),
+			Mino(dx4, dy4)
 		]
+		self.cornerX = cornerX
+		self.cornerY = cornerY
+		self.size = size
 
 	def createCopy(self):
-		copy = Tetromino(0, 0, 0, 0, 0, 0, 0, 0)
+		copy = Tetromino(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+		copy.x = self.x
+		copy.y = self.y
+		copy.cornerX = self.cornerX
+		copy.cornerY = self.cornerY
+		copy.size = self.size
 		copy.minos = [
 			Mino(self.minos[0].x, self.minos[0].y),
 			Mino(self.minos[1].x, self.minos[1].y),
@@ -38,8 +49,8 @@ class Tetromino:
 	def tryMove(self, matrix, dx, dy):
 		canMove = True
 		for mino in self.minos:
-			newX = mino.x + dx
-			newY = mino.y + dy
+			newX = self.x + mino.x + dx
+			newY = self.y + mino.y + dy
 			if newX < 0 or newX >= matrixWidth or newY >= matrixHeight:
 				canMove = False
 				break
@@ -47,49 +58,61 @@ class Tetromino:
 				canMove = False
 				break
 		if canMove:
-			for mino in self.minos:
-				mino.x += dx
-				mino.y += dy
+			self.x += dx
+			self.y += dy
 		return canMove
 
+	def tryTurnLeft(self):
+		canRotate = True
+		for mino in self.minos:
+			currX = mino.x - self.cornerX
+			currY = mino.y - self.cornerY
+			newX = self.x + currY + self.cornerX
+			newY = self.y + self.size - currX - 1 + self.cornerY
+			if newX < 0 or newX >= matrixWidth or newY >= matrixHeight:
+				canRotate = False
+				break
+			if matrix[newY][newX] == 1:
+				canRotate = False
+				break
+		if canRotate:
+			for mino in self.minos:
+				currX = mino.x - self.cornerX
+				currY = mino.y - self.cornerY
+				mino.x = currY + self.cornerX
+				mino.y = self.size - currX - 1 + self.cornerY
+
+	def tryTurnRight(self):
+		canRotate = True
+		for mino in self.minos:
+			currX = mino.x - self.cornerX
+			currY = mino.y - self.cornerY
+			newX = self.x + self.size - currY - 1 + self.cornerX
+			newY = self.y + currX + self.cornerY
+			if newX < 0 or newX >= matrixWidth or newY >= matrixHeight:
+				canRotate = False
+				break
+			if matrix[newY][newX] == 1:
+				canRotate = False
+				break
+		if canRotate:
+			for mino in self.minos:
+				currX = mino.x - self.cornerX
+				currY = mino.y - self.cornerY
+				mino.x = self.size - currY - 1 + self.cornerX
+				mino.y = currX + self.cornerY
+
 tetrominos = [
-	Tetromino(1, 0, 2, 0, 1, -1, 2, -1), #O
-	Tetromino(0, 0, 1, 0, 2, 0, 3, 0), #I
-	Tetromino(0, 0, 1, 0, 2, 0, 1, -1), #T
-	Tetromino(0, 0, 1, 0, 2, 0, 2, -1), #J
-	Tetromino(0, 0, 1, 0, 2, 0, 0, -1), #L
-	Tetromino(0, 0, 1, 0, 1, -1, 2, -1), #S
-	Tetromino(1, 0, 2, 0, 0, -1, 1, -1) #Z
+	Tetromino(1, 0, 2, 0, 1, -1, 2, -1, 0, -2, 4), #O
+	Tetromino(0, 0, 1, 0, 2, 0, 3, 0, 0, -1, 4), #I
+	Tetromino(0, 0, 1, 0, 2, 0, 1, -1, 0, -1, 3), #T
+	Tetromino(0, 0, 1, 0, 2, 0, 2, -1, 0, -1, 3), #J
+	Tetromino(0, 0, 1, 0, 2, 0, 0, -1, 0, -1, 3), #L
+	Tetromino(0, 0, 1, 0, 1, -1, 2, -1, 0, -1, 3), #S
+	Tetromino(1, 0, 2, 0, 0, -1, 1, -1, 0, -1, 3) #Z
 ]
 
-def updateBoard(matrix):
-	newMatrix = []
-	emptyRow = []
-	clearedRows = 0
-	score = 0
-	tetris = False
-	for tile in matrixWidth:
-		emptyRow.append(0)
-	for row in matrix:
-		clear = 1
-		for tile in row:
-			clear &= tile
-		if clear == 0:
-			newMatrix.append(row)
-		else:
-			newMatrix.insert(0, emptyRow)
-			clearedRows += 1
-	if clearedRows == 4:
-		if prevTetris:
-			score = 1200
-		else:
-			score = 800
-		prevTetris = True
-	else:
-		score = clearedRows * 100
-		prevTetris = False
-	return [newMatrix, score, tetris]
-
+#Initialization
 os.environ["SDL_VIDEO_CENTERED"] = "1"
 pygame.init()
 screenWidth = matrixWidth * (minoSize + gridlineSize) - gridlineSize
@@ -110,43 +133,126 @@ board = pygame.Surface(screen.get_size())
 board = board.convert()
 board.fill(gridlineColour)
 clock = pygame.time.Clock()
+
+#Variables
 currentTetromino = None
 running = True
 gameOver = False
+paused = False
+ticksSinceFall = 0
+score = 0
+prevTetris = False
+
+#Loop
 while running:
+
+	drop = False
+	moveLeft = False
+	moveRight = False
+	turnLeft = False
+	turnRight = False
+
+	#Input
 	for event in pygame.event.get():
 		if event.type == pygame.QUIT:
 			running = False
+		if event.type == pygame.KEYDOWN:
+			if event.key == pygame.K_UP:
+				turnRight = True
+			if event.key == pygame.K_z:
+				turnLeft = True
+				
+	keys = pygame.key.get_pressed()
+	if keys[pygame.K_DOWN]:
+		drop = True
+	if keys[pygame.K_LEFT]:
+		moveLeft = True
+	if keys[pygame.K_RIGHT]:
+		moveRight = True
+
 	clock.tick(60)
-	if gameOver:
+	if gameOver or paused:
 		continue
-	if currentTetromino == None:
-		tetrominoIndex = random.randrange(len(tetrominos))
-		currentTetromino = tetrominos[tetrominoIndex].createCopy()
-		for mino in currentTetromino.minos:
-			if matrix[mino.y][mino.x] == 1:
-				print("Game over")
-				gameOver = True
-				break
-		if gameOver:
-			continue
-	else:
-		for mino in currentTetromino.minos:
-				matrix[mino.y][mino.x] = 0
-		if currentTetromino.tryMove(matrix, 0, 1) == False:
-			for mino in currentTetromino.minos:
-				matrix[mino.y][mino.x] = 1
-			currentTetromino = None
+
+	#Tetromino logic
 	if currentTetromino != None:
 		for mino in currentTetromino.minos:
-			matrix[mino.y][mino.x] = 2
+			matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x] = 0
+		if turnLeft:
+			currentTetromino.tryTurnLeft()
+		if turnRight:
+			currentTetromino.tryTurnRight()
+		if ticksSinceFall % 6 == 0:
+			if drop:
+				currentTetromino.tryMove(matrix, 0, 1)
+				score += 1
+			if moveLeft:
+				currentTetromino.tryMove(matrix, -1, 0)
+			if moveRight:
+				currentTetromino.tryMove(matrix, 1, 0)
+		for mino in currentTetromino.minos:
+				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x] = 2
+	if ticksSinceFall >= 36:
+		ticksSinceFall = 0
+		if currentTetromino == None:
+			tetrominoIndex = random.randrange(len(tetrominos))
+			currentTetromino = tetrominos[tetrominoIndex].createCopy()
+			for mino in currentTetromino.minos:
+				if matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x] == 1:
+					print("Game over")
+					gameOver = True
+					break
+			if gameOver:
+				continue
+		else:
+			for mino in currentTetromino.minos:
+					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x] = 0
+			if currentTetromino.tryMove(matrix, 0, 1) == False:
+				for mino in currentTetromino.minos:
+					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x] = 1
+				currentTetromino = None
+		if currentTetromino != None:
+			for mino in currentTetromino.minos:
+				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x] = 2
+	
+	#Row Removal
+	newMatrix = []
+	emptyRow = []
+	clearedRows = 0
+	tetris = False
+	for tile in range(matrixWidth):
+		emptyRow.append(0)
+	for row in matrix:
+		clear = True
+		for tile in row:
+			if tile != 1:
+				clear = False
+				break
+		if clear:
+			newMatrix.insert(0, emptyRow)
+			clearedRows += 1
+		else:
+			newMatrix.append(row)
+	if clearedRows == 4:
+		if prevTetris:
+			score += 1200
+		else:
+			score += 800
+		prevTetris = True
+	else:
+		score += clearedRows * 100
+		prevTetris = False
+	matrix = newMatrix
+
+	#Screen Display
 	for y in range(matrixHeight):
 		for x in range(matrixWidth):
 			if matrix[y][x] > 0:
 				board.blit(filledMino, [x * (minoSize + gridlineSize), y * (minoSize + gridlineSize)])
 			else:
 				board.blit(emptyMino, [x * (minoSize + gridlineSize), y * (minoSize + gridlineSize)])
-	time.sleep(0.1)
+	ticksSinceFall += 1
 	screen.blit(board, [0, 0])
 	pygame.display.flip()
+
 pygame.quit()
