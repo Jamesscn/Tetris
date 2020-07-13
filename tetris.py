@@ -1,4 +1,4 @@
-import pygame, random, os, time
+import pygame, random, os
 
 #Parameters
 matrixWidth = 10
@@ -7,8 +7,13 @@ minoSpawnX = 3
 minoSpawnY = 1
 minoSize = 32
 gridlineSize = 1
+sidebarWidth = minoSize * 6
+sidebarMinoX = 1
+sidebarMinoY = 6
 emptyMinoColour = [27, 27, 27]
 gridlineColour = [0, 0, 0]
+textColour = [255, 255, 255]
+sidebarColour = [18, 18, 18]
 
 #Classes
 class Tile:
@@ -121,7 +126,7 @@ tetrominos = [
 #Initialization
 os.environ["SDL_VIDEO_CENTERED"] = "1"
 pygame.init()
-screenWidth = matrixWidth * (minoSize + gridlineSize) - gridlineSize
+screenWidth = matrixWidth * (minoSize + gridlineSize) - gridlineSize + sidebarWidth
 screenHeight = matrixHeight * (minoSize + gridlineSize) - gridlineSize
 matrix = []
 for y in range(matrixHeight):
@@ -132,6 +137,8 @@ for y in range(matrixHeight):
 filledMino = pygame.surface.Surface([minoSize, minoSize])
 emptyMino = pygame.surface.Surface([minoSize, minoSize])
 emptyMino.fill(emptyMinoColour)
+sidebar = pygame.surface.Surface([sidebarWidth, screenHeight])
+sidebar.fill(sidebarColour)
 screen = pygame.display.set_mode([screenWidth, screenHeight])
 pygame.display.set_caption("Tetris")
 board = pygame.Surface(screen.get_size())
@@ -141,11 +148,13 @@ clock = pygame.time.Clock()
 
 #Variables
 currentTetromino = None
+nextTetromino = None
 running = True
 gameOver = False
 paused = False
 ticksSinceFall = 0
 score = 0
+lines = 0
 prevTetris = False
 
 #Loop
@@ -179,7 +188,7 @@ while running:
 	if gameOver or paused:
 		continue
 
-	#Tetromino logic
+	#Tetromino Logic
 	if currentTetromino != None:
 		for mino in currentTetromino.minos:
 			matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 0
@@ -189,69 +198,68 @@ while running:
 			currentTetromino.tryTurnRight()
 		if ticksSinceFall % 6 == 0:
 			if drop:
-				currentTetromino.tryMove(matrix, 0, 1)
-				score += 1
+				if currentTetromino.tryMove(matrix, 0, 1):
+					score += 1
 			if moveLeft:
 				currentTetromino.tryMove(matrix, -1, 0)
 			if moveRight:
 				currentTetromino.tryMove(matrix, 1, 0)
-		for mino in currentTetromino.minos:
-				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 2
-				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].colour = currentTetromino.colour
 	if ticksSinceFall >= 36:
 		ticksSinceFall = 0
 		if currentTetromino == None:
-			tetrominoIndex = random.randrange(len(tetrominos))
-			currentTetromino = tetrominos[tetrominoIndex].createCopy()
+			if nextTetromino == None:
+				currentTetromino = tetrominos[random.randrange(len(tetrominos))].createCopy()
+			else:
+				currentTetromino = nextTetromino
+			nextTetromino = tetrominos[random.randrange(len(tetrominos))].createCopy()
 			for mino in currentTetromino.minos:
 				if matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value == 1:
-					print("Game over")
 					gameOver = True
 					break
-			if gameOver:
-				continue
 		else:
 			for mino in currentTetromino.minos:
-					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 0
+				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 0
 			if currentTetromino.tryMove(matrix, 0, 1) == False:
 				for mino in currentTetromino.minos:
 					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 1
 					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].colour = currentTetromino.colour
 				currentTetromino = None
-		if currentTetromino != None:
-			for mino in currentTetromino.minos:
-				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 2
-				matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].colour = currentTetromino.colour
-	
-	#Row Removal
-	newMatrix = []
-	emptyRow = []
-	clearedRows = 0
-	tetris = False
-	for tile in range(matrixWidth):
-		emptyRow.append(Tile(0, [0, 0, 0]))
-	for row in matrix:
-		clear = True
-		for tile in row:
-			if tile.value != 1:
-				clear = False
-				break
-		if clear:
-			newMatrix.insert(0, emptyRow)
-			clearedRows += 1
-		else:
-			newMatrix.append(row)
-	if clearedRows == 4:
-		if prevTetris:
-			score += 1200
-		else:
-			score += 800
-		prevTetris = True
-	else:
-		score += clearedRows * 100
-		prevTetris = False
-	matrix = newMatrix
 
+		#Row Removal
+		newMatrix = []
+		emptyRow = []
+		clearedRows = 0
+		tetris = False
+		for tile in range(matrixWidth):
+			emptyRow.append(Tile(0, [0, 0, 0]))
+		for row in matrix:
+			clear = True
+			for tile in row:
+				if tile.value != 1:
+					clear = False
+					break
+			if clear:
+				newMatrix.insert(0, emptyRow)
+				clearedRows += 1
+				lines += 1
+			else:
+				newMatrix.append(row)
+		if clearedRows == 4:
+			if prevTetris:
+				score += 1200
+			else:
+				score += 800
+			prevTetris = True
+		else:
+			score += clearedRows * 100
+			prevTetris = False
+		matrix = newMatrix
+		
+	if currentTetromino != None:
+		for mino in currentTetromino.minos:
+			matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 2
+			matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].colour = currentTetromino.colour
+	
 	#Screen Display
 	for y in range(matrixHeight):
 		for x in range(matrixWidth):
@@ -260,8 +268,27 @@ while running:
 				board.blit(filledMino, [x * (minoSize + gridlineSize), y * (minoSize + gridlineSize)])
 			else:
 				board.blit(emptyMino, [x * (minoSize + gridlineSize), y * (minoSize + gridlineSize)])
-	ticksSinceFall += 1
-	screen.blit(board, [0, 0])
+	screen.blit(board, [sidebarWidth, 0])
+	screen.blit(sidebar, [0, 0])
+	if nextTetromino != None:
+		for mino in nextTetromino.minos:
+			filledMino.fill(nextTetromino.colour)
+			offsetX = 0
+			if nextTetromino.size == 3:
+				offsetX = round(minoSize / 2)
+			screen.blit(filledMino, [(sidebarMinoX + mino.x) * (minoSize + gridlineSize) + offsetX, (sidebarMinoY + mino.y) * (minoSize + gridlineSize)])
+	if pygame.font:
+		font = pygame.font.Font(None, 36)
+		scoreText = font.render("Score: " + str(score), 1, textColour)
+		linesText = font.render("Lines: " + str(lines), 1, textColour)
+		nextText = font.render("Next", 1, textColour)
+		gameoverText = font.render("Game Over", 1, textColour)
+		screen.blit(scoreText, [20, 20])
+		screen.blit(linesText, [20, 50])
+		screen.blit(nextText, [72, 120])
+		if gameOver:
+			screen.blit(gameoverText, [30, 270])
 	pygame.display.flip()
+	ticksSinceFall += 1
 
 pygame.quit()
