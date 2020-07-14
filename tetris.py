@@ -1,12 +1,13 @@
-import pygame, random, os
+import pygame, random, os, math
 
 #Parameters
 matrixWidth = 10
-matrixHeight = 20
+matrixHeight = 22
 minoSpawnX = 3
 minoSpawnY = 1
 minoSize = 32
 gridlineSize = 1
+partialRowSize = 8
 sidebarWidth = minoSize * 6
 sidebarMinoX = 1
 sidebarMinoY = 6
@@ -136,7 +137,7 @@ pygame.init()
 pygame.mixer.music.load('remix.mp3')
 pygame.mixer.music.play(-1)
 screenWidth = matrixWidth * (minoSize + gridlineSize) - gridlineSize + sidebarWidth
-screenHeight = matrixHeight * (minoSize + gridlineSize) - gridlineSize
+screenHeight = (matrixHeight - 2) * (minoSize + gridlineSize) - gridlineSize + partialRowSize
 matrix = []
 for y in range(matrixHeight):
 	row = []
@@ -152,7 +153,7 @@ sidebar = pygame.surface.Surface([sidebarWidth, screenHeight])
 sidebar.fill(sidebarColour)
 screen = pygame.display.set_mode([screenWidth, screenHeight])
 pygame.display.set_caption("Tetris")
-board = pygame.Surface(screen.get_size())
+board = pygame.Surface([screenWidth - sidebarWidth, matrixHeight * (minoSize + gridlineSize) - gridlineSize])
 board = board.convert()
 board.fill(gridlineColour)
 clock = pygame.time.Clock()
@@ -168,6 +169,7 @@ music = True
 ticksSinceFall = 0
 score = 0
 lines = 0
+level = 0
 prevTetris = False
 
 #Loop
@@ -216,6 +218,14 @@ while running:
 		continue
 
 	#Tetromino Logic
+	currentFrames = 60
+	moveFrames = 4
+	if level < 10:
+		currentFrames = 60 - level * 5
+	else:
+		currentFrames = max(23 - level, 4)
+		moveFrames = 2
+
 	if currentTetromino != None:
 		if turnLeft:
 			currentTetromino.tryTurnLeft(matrix)
@@ -224,16 +234,18 @@ while running:
 		if drop:
 			while currentTetromino.tryMove(matrix, 0, 1):
 				score += 1
-		if ticksSinceFall % 6 == 0:
+				ticksSinceFall = 0
+		if ticksSinceFall % moveFrames == 0:
 			if descend:
 				if currentTetromino.tryMove(matrix, 0, 1):
 					score += 1
+					ticksSinceFall = 0
 			if moveLeft:
 				currentTetromino.tryMove(matrix, -1, 0)
 			if moveRight:
 				currentTetromino.tryMove(matrix, 1, 0)
 
-	if ticksSinceFall >= 36:
+	if ticksSinceFall >= currentFrames:
 		ticksSinceFall = 0
 		if currentTetromino == None:
 			if len(tetrominoBag) == 0:
@@ -283,6 +295,7 @@ while running:
 					score += clearedRows * 100
 					prevTetris = False
 				matrix = newMatrix
+				level = math.floor(lines / 10)
 	
 	#Screen Display
 	for y in range(matrixHeight):
@@ -309,7 +322,7 @@ while running:
 		for mino in currentTetromino.minos:
 			filledMino.fill(currentTetromino.colour)
 			board.blit(filledMino, [(currentTetromino.x + mino.x) * (minoSize + gridlineSize), (currentTetromino.y + mino.y) * (minoSize + gridlineSize)])
-	screen.blit(board, [sidebarWidth, 0])
+	screen.blit(board, [sidebarWidth, - (minoSize + gridlineSize) * 2 + gridlineSize + partialRowSize])
 	screen.blit(sidebar, [0, 0])
 	if nextTetromino != None:
 		for mino in nextTetromino.minos:
@@ -322,10 +335,12 @@ while running:
 		font = pygame.font.Font(None, 36)
 		scoreText = font.render("Score: " + str(score), 1, textColour)
 		linesText = font.render("Lines: " + str(lines), 1, textColour)
+		levelText = font.render("Level: " + str(level), 1, textColour)
 		gameoverText = font.render("Game Over", 1, textColour)
 		nextText = font.render("Next", 1, textColour)
 		screen.blit(scoreText, [20, 20])
 		screen.blit(linesText, [20, 50])
+		screen.blit(levelText, [20, 80])
 		screen.blit(nextText, [72, 120])
 		if gameOver:
 			screen.blit(gameoverText, [30, 270])
