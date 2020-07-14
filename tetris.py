@@ -17,8 +17,8 @@ sidebarColour = [18, 18, 18]
 
 #Classes
 class Tile:
-	def __init__(self, value, colour):
-		self.value = value
+	def __init__(self, filled, colour):
+		self.filled = filled
 		self.colour = colour
 
 class Mino:
@@ -57,7 +57,7 @@ class Tetromino:
 		]
 		return copy
 
-	def tryMove(self, matrix, dx, dy):
+	def tryMove(self, moveMatrix, dx, dy):
 		canMove = True
 		for mino in self.minos:
 			newX = self.x + mino.x + dx
@@ -65,7 +65,7 @@ class Tetromino:
 			if newX < 0 or newX >= matrixWidth or newY >= matrixHeight:
 				canMove = False
 				break
-			if matrix[newY][newX].value == 1:
+			if moveMatrix[newY][newX].filled:
 				canMove = False
 				break
 		if canMove:
@@ -73,7 +73,7 @@ class Tetromino:
 			self.y += dy
 		return canMove
 
-	def tryTurnLeft(self):
+	def tryTurnLeft(self, moveMatrix):
 		canRotate = True
 		for mino in self.minos:
 			currX = mino.x - self.cornerX
@@ -83,7 +83,7 @@ class Tetromino:
 			if newX < 0 or newX >= matrixWidth or newY >= matrixHeight:
 				canRotate = False
 				break
-			if matrix[newY][newX].value == 1:
+			if moveMatrix[newY][newX].filled:
 				canRotate = False
 				break
 		if canRotate:
@@ -93,7 +93,7 @@ class Tetromino:
 				mino.x = currY + self.cornerX
 				mino.y = self.size - currX - 1 + self.cornerY
 
-	def tryTurnRight(self):
+	def tryTurnRight(self, moveMatrix):
 		canRotate = True
 		for mino in self.minos:
 			currX = mino.x - self.cornerX
@@ -103,7 +103,7 @@ class Tetromino:
 			if newX < 0 or newX >= matrixWidth or newY >= matrixHeight:
 				canRotate = False
 				break
-			if matrix[newY][newX].value == 1:
+			if moveMatrix[newY][newX].filled:
 				canRotate = False
 				break
 		if canRotate:
@@ -112,6 +112,12 @@ class Tetromino:
 				currY = mino.y - self.cornerY
 				mino.x = self.size - currY - 1 + self.cornerX
 				mino.y = currX + self.cornerY
+
+def shuffle(array):
+	newArray = []
+	while len(array) > 0:
+		newArray.append(array.pop(random.randrange(len(array))))
+	return newArray
 
 tetrominos = [
 	Tetromino(1, 0, 2, 0, 1, -1, 2, -1, 0, -2, 4, [192, 192, 0]), #O
@@ -134,7 +140,7 @@ matrix = []
 for y in range(matrixHeight):
 	row = []
 	for x in range(matrixWidth):
-		row.append(Tile(0, [0, 0, 0]))
+		row.append(Tile(False, [0, 0, 0]))
 	matrix.append(row)
 filledMino = pygame.surface.Surface([minoSize, minoSize])
 emptyMino = pygame.surface.Surface([minoSize, minoSize])
@@ -151,6 +157,7 @@ clock = pygame.time.Clock()
 #Variables
 currentTetromino = None
 nextTetromino = None
+tetrominoBag = []
 running = True
 gameOver = False
 paused = False
@@ -161,7 +168,6 @@ prevTetris = False
 
 #Loop
 while running:
-
 	descend = False
 	drop = False
 	moveLeft = False
@@ -191,14 +197,15 @@ while running:
 
 	clock.tick(60)
 	if gameOver or paused:
+		pygame.mixer.music.fadeout(5000)
 		continue
 
 	#Tetromino Logic
 	if currentTetromino != None:
 		if turnLeft:
-			currentTetromino.tryTurnLeft()
+			currentTetromino.tryTurnLeft(matrix)
 		if turnRight:
-			currentTetromino.tryTurnRight()
+			currentTetromino.tryTurnRight(matrix)
 		if drop:
 			while currentTetromino.tryMove(matrix, 0, 1):
 				score += 1
@@ -210,59 +217,61 @@ while running:
 				currentTetromino.tryMove(matrix, -1, 0)
 			if moveRight:
 				currentTetromino.tryMove(matrix, 1, 0)
+
 	if ticksSinceFall >= 36:
 		ticksSinceFall = 0
 		if currentTetromino == None:
+			if len(tetrominoBag) == 0:
+				for index in range(len(tetrominos)):
+					tetrominoBag.append(index)
+				tetrominoBag = shuffle(tetrominoBag)
 			if nextTetromino == None:
-				currentTetromino = tetrominos[random.randrange(len(tetrominos))].createCopy()
-			else:
-				currentTetromino = nextTetromino
-			nextTetromino = tetrominos[random.randrange(len(tetrominos))].createCopy()
+				nextTetromino = tetrominos[tetrominoBag.pop()].createCopy()
+			currentTetromino = nextTetromino
+			nextTetromino = tetrominos[tetrominoBag.pop()].createCopy()
 			for mino in currentTetromino.minos:
-				if matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value == 1:
+				if matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].filled:
 					gameOver = True
 					break
 		else:
 			if currentTetromino.tryMove(matrix, 0, 1) == False:
 				for mino in currentTetromino.minos:
-					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].value = 1
+					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].filled = True
 					matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].colour = currentTetromino.colour
 				currentTetromino = None
-
-		#Row Removal
-		newMatrix = []
-		emptyRow = []
-		clearedRows = 0
-		tetris = False
-		for tile in range(matrixWidth):
-			emptyRow.append(Tile(0, [0, 0, 0]))
-		for row in matrix:
-			clear = True
-			for tile in row:
-				if tile.value != 1:
-					clear = False
-					break
-			if clear:
-				newMatrix.insert(0, emptyRow)
-				clearedRows += 1
-				lines += 1
-			else:
-				newMatrix.append(row)
-		if clearedRows == 4:
-			if prevTetris:
-				score += 1200
-			else:
-				score += 800
-			prevTetris = True
-		else:
-			score += clearedRows * 100
-			prevTetris = False
-		matrix = newMatrix
+				newMatrix = []
+				clearedRows = 0
+				tetris = False
+				for row in matrix:
+					clear = True
+					for tile in row:
+						if not tile.filled:
+							clear = False
+							break
+					if clear:
+						emptyRow = []
+						for emptyTile in range(matrixWidth):
+							emptyRow.append(Tile(False, [0, 0, 0]))
+						newMatrix.insert(0, emptyRow)
+						clearedRows += 1
+						lines += 1
+					else:
+						newMatrix.append(row)
+				if clearedRows == 4:
+					if prevTetris:
+						score += 1200
+					else:
+						score += 800
+					prevTetris = True
+				else:
+					score += clearedRows * 100
+					prevTetris = False
+				matrix = newMatrix
 	
 	#Screen Display
 	for y in range(matrixHeight):
 		for x in range(matrixWidth):
-			if matrix[y][x].value > 0:
+			if matrix[y][x].filled:
 				filledMino.fill(matrix[y][x].colour)
 				board.blit(filledMino, [x * (minoSize + gridlineSize), y * (minoSize + gridlineSize)])
 			else:
