@@ -126,6 +126,8 @@ tetrominos = [
 #Initialization
 os.environ["SDL_VIDEO_CENTERED"] = "1"
 pygame.init()
+pygame.mixer.music.load('remix.mp3')
+pygame.mixer.music.play(-1)
 screenWidth = matrixWidth * (minoSize + gridlineSize) - gridlineSize + sidebarWidth
 screenHeight = matrixHeight * (minoSize + gridlineSize) - gridlineSize
 matrix = []
@@ -160,6 +162,7 @@ prevTetris = False
 #Loop
 while running:
 
+	descend = False
 	drop = False
 	moveLeft = False
 	moveRight = False
@@ -175,10 +178,12 @@ while running:
 				turnRight = True
 			if event.key == pygame.K_z:
 				turnLeft = True
+			if event.key == pygame.K_SPACE:
+				drop = True
 				
 	keys = pygame.key.get_pressed()
 	if keys[pygame.K_DOWN]:
-		drop = True
+		descend = True
 	if keys[pygame.K_LEFT]:
 		moveLeft = True
 	if keys[pygame.K_RIGHT]:
@@ -194,8 +199,11 @@ while running:
 			currentTetromino.tryTurnLeft()
 		if turnRight:
 			currentTetromino.tryTurnRight()
+		if drop:
+			while currentTetromino.tryMove(matrix, 0, 1):
+				score += 1
 		if ticksSinceFall % 6 == 0:
-			if drop:
+			if descend:
 				if currentTetromino.tryMove(matrix, 0, 1):
 					score += 1
 			if moveLeft:
