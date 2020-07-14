@@ -14,6 +14,7 @@ emptyMinoColour = [27, 27, 27]
 gridlineColour = [0, 0, 0]
 textColour = [255, 255, 255]
 sidebarColour = [18, 18, 18]
+ghostMinoColour = [127, 127, 127]
 
 #Classes
 class Tile:
@@ -144,7 +145,9 @@ for y in range(matrixHeight):
 	matrix.append(row)
 filledMino = pygame.surface.Surface([minoSize, minoSize])
 emptyMino = pygame.surface.Surface([minoSize, minoSize])
+ghostMino = pygame.surface.Surface([minoSize, minoSize])
 emptyMino.fill(emptyMinoColour)
+ghostMino.fill(ghostMinoColour)
 sidebar = pygame.surface.Surface([sidebarWidth, screenHeight])
 sidebar.fill(sidebarColour)
 screen = pygame.display.set_mode([screenWidth, screenHeight])
@@ -161,6 +164,7 @@ tetrominoBag = []
 running = True
 gameOver = False
 paused = False
+music = True
 ticksSinceFall = 0
 score = 0
 lines = 0
@@ -186,6 +190,18 @@ while running:
 				turnLeft = True
 			if event.key == pygame.K_SPACE:
 				drop = True
+			if event.key == pygame.K_ESCAPE:
+				paused = not paused
+				if paused:
+					pygame.mixer.music.pause()
+				else:
+					pygame.mixer.music.unpause()
+			if event.key == pygame.K_m:
+				music = not music
+				if music:
+					pygame.mixer.music.unpause()
+				else:
+					pygame.mixer.music.pause()
 				
 	keys = pygame.key.get_pressed()
 	if keys[pygame.K_DOWN]:
@@ -197,7 +213,6 @@ while running:
 
 	clock.tick(60)
 	if gameOver or paused:
-		pygame.mixer.music.fadeout(5000)
 		continue
 
 	#Tetromino Logic
@@ -232,6 +247,7 @@ while running:
 			for mino in currentTetromino.minos:
 				if matrix[currentTetromino.y + mino.y][currentTetromino.x + mino.x].filled:
 					gameOver = True
+					pygame.mixer.music.fadeout(5000)
 					break
 		else:
 			if currentTetromino.tryMove(matrix, 0, 1) == False:
@@ -276,7 +292,20 @@ while running:
 				board.blit(filledMino, [x * (minoSize + gridlineSize), y * (minoSize + gridlineSize)])
 			else:
 				board.blit(emptyMino, [x * (minoSize + gridlineSize), y * (minoSize + gridlineSize)])
-	if currentTetromino != None:
+	if currentTetromino != None and not gameOver:
+		for ghostY in range(matrixHeight):
+			bottom = False
+			for mino in currentTetromino.minos:
+				if currentTetromino.y + mino.y + ghostY >= matrixHeight:
+					bottom = True
+					break
+				if matrix[currentTetromino.y + mino.y + ghostY][currentTetromino.x + mino.x].filled:
+					bottom = True
+					break
+			if bottom:
+				for mino in currentTetromino.minos:
+					board.blit(ghostMino, [(currentTetromino.x + mino.x) * (minoSize + gridlineSize), (currentTetromino.y + mino.y + ghostY - 1) * (minoSize + gridlineSize)])
+				break
 		for mino in currentTetromino.minos:
 			filledMino.fill(currentTetromino.colour)
 			board.blit(filledMino, [(currentTetromino.x + mino.x) * (minoSize + gridlineSize), (currentTetromino.y + mino.y) * (minoSize + gridlineSize)])
@@ -293,8 +322,8 @@ while running:
 		font = pygame.font.Font(None, 36)
 		scoreText = font.render("Score: " + str(score), 1, textColour)
 		linesText = font.render("Lines: " + str(lines), 1, textColour)
-		nextText = font.render("Next", 1, textColour)
 		gameoverText = font.render("Game Over", 1, textColour)
+		nextText = font.render("Next", 1, textColour)
 		screen.blit(scoreText, [20, 20])
 		screen.blit(linesText, [20, 50])
 		screen.blit(nextText, [72, 120])
